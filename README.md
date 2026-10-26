@@ -1,41 +1,38 @@
 # Task Manager API
 
 A RESTful task management API built with Go's standard `net/http` package.
+The API currently uses an in-memory repository, so all data is reset when the
+server restarts.
 
-## Project Overview
-
-A backend application for creating, reading, updating, and deleting tasks.
-
-This project is being developed as a practical learning experience, following professional Go backend engineering practices.
-
-## Technology Stack
+## Technology stack
 
 - Go 1.27.3+
-- `net/http`
-- In-memory task storage
+- `net/http` with method-aware `http.ServeMux` routing
+- In-memory storage protected by a mutex
+- JSON request and response bodies
 
-## Current Features
+## Features
 
-- Task CRUD operations
-- Task status and priority management
-- JSON request and response handling
+- Create, list, retrieve, update, and delete tasks
+- Task validation for title, status, and priority
 - Health check endpoint
+- Unit and HTTP handler/router tests
 
-Valid task statuses are `todo`, `in_progress`, and `done`. Valid priorities are
+Valid statuses are `todo`, `in_progress`, and `done`. Valid priorities are
 `low`, `medium`, and `high`.
 
-## API Endpoints
+## API endpoints
 
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `GET` | `/health` | Returns the service health status |
-| `GET` | `/api/v1/tasks` | Lists all tasks |
-| `GET` | `/api/v1/tasks/{id}` | Returns one task |
-| `POST` | `/api/v1/tasks` | Creates a task |
-| `PUT` | `/api/v1/tasks/{id}` | Updates a task |
-| `DELETE` | `/api/v1/tasks/{id}` | Deletes a task |
+| Method | Endpoint | Success | Description |
+| --- | --- | --- | --- |
+| `GET` | `/health` | `200` | Returns service health |
+| `GET` | `/api/v1/tasks` | `200` | Lists all tasks |
+| `GET` | `/api/v1/tasks/{id}` | `200` | Returns one task |
+| `POST` | `/api/v1/tasks` | `201` | Creates a task |
+| `PUT` | `/api/v1/tasks/{id}` | `200` | Replaces a task |
+| `DELETE` | `/api/v1/tasks/{id}` | `204` | Deletes a task |
 
-Task creation and update requests use this JSON shape:
+Create and update requests use this JSON shape:
 
 ```json
 {
@@ -45,61 +42,115 @@ Task creation and update requests use this JSON shape:
 }
 ```
 
-Example request:
+Invalid JSON, invalid task data, invalid IDs, and missing tasks return `4xx`
+responses as appropriate.
 
-```bash
-curl http://localhost:8080/api/v1/tasks
-```
-
-## Project Structure
+## Project structure
 
 ```text
 task-manager-api/
 ├── cmd/
 │   └── api/
-│       └── main.go
+│       └── main.go             # Application entry point and health route
 ├── internal/
-├── migrations/
-├── tests/
+│   └── task/
+│       ├── model.go            # Task request/response models
+│       ├── repository.go       # Repository interface and memory storage
+│       ├── service.go          # Validation and business logic
+│       ├── handler.go          # HTTP handlers
+│       ├── router.go           # API route registration
+│       └── *_test.go           # Service, handler, router, and validation tests
 ├── .gitignore
 ├── go.mod
 └── README.md
 ```
 
-## Development Status
+## Development commands
 
-In development — the current implementation stores tasks in memory, so data is
-reset whenever the server restarts.
+Run these commands from the repository root.
 
-## Getting Started
-
-The module path is `github.com/arguv/task-manager-api`. Make sure Go 1.27.3 or
-newer is installed, then format and validate the source code:
+Check the installed Go version:
 
 ```bash
-gofmt -w cmd/api/main.go
-go vet ./...
+go version
 ```
 
-Download module dependencies, if any are added:
+Download module dependencies:
 
 ```bash
 go mod download
 ```
 
-Run the API with:
+Format the source code:
+
+```bash
+gofmt -w cmd/api/main.go internal/task/*.go
+```
+
+Run static analysis:
+
+```bash
+go vet ./...
+```
+
+Run all tests:
+
+```bash
+go test ./...
+```
+
+Generate a coverage profile:
+
+```bash
+go test -coverprofile=coverage.out ./...
+```
+
+Create an HTML coverage report:
+
+```bash
+go tool cover -html=coverage.out -o coverage.html
+```
+
+Run the API locally:
 
 ```bash
 go run ./cmd/api
 ```
 
-The server starts on port `8080`.
+The server listens on `http://localhost:8080`. Stop it with `Ctrl+C`.
 
-To run the test suite:
+## Example requests
+
+With the server running, use the following commands in another terminal:
 
 ```bash
-go test ./...
+# Health check
+curl http://localhost:8080/health
+
+# List tasks
+curl http://localhost:8080/api/v1/tasks
+
+# Get task 1
+curl http://localhost:8080/api/v1/tasks/1
+
+# Create a task
+curl -X POST http://localhost:8080/api/v1/tasks \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"Review API documentation","status":"todo","priority":"medium"}'
+
+# Update task 1
+curl -X PUT http://localhost:8080/api/v1/tasks/1 \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"Learn advanced Go","status":"done","priority":"high"}'
+
+# Delete task 1
+curl -i -X DELETE http://localhost:8080/api/v1/tasks/1
 ```
+
+## Development status
+
+The API is in development. Storage is intentionally in memory for now; a
+future persistence layer can implement the existing `Repository` interface.
 
 ## License
 

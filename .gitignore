@@ -30,3 +30,7 @@ Thumbs.db
 
 # Dependency/vendor directories
 /vendor/
+
+# Test coverage reports
+coverage.out
+coverage.html
