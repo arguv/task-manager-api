@@ -4,7 +4,7 @@ import "sync"
 
 // Repository defines the storage operations required by the service.
 type Repository interface {
-	List() []Task
+	List() ([]Task, error)
 	Get(id int) (Task, error)
 	Create(task Task) (Task, error)
 	Update(task Task) (Task, error)
@@ -28,11 +28,13 @@ func NewMemoryRepository() *MemoryRepository {
 	}
 }
 
-func (r *MemoryRepository) List() []Task {
+func (r *MemoryRepository) List() ([]Task, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	return append([]Task{}, r.tasks...)
+	tasks := append([]Task{}, r.tasks...)
+
+	return tasks, nil
 }
 
 func (r *MemoryRepository) Get(id int) (Task, error) {

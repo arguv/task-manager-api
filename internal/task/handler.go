@@ -17,11 +17,20 @@ func NewHandler(service *Service) *Handler {
 }
 
 func (h *Handler) ListTasks(w http.ResponseWriter, r *http.Request) {
-	tasks := h.service.List()
+	tasks, err := h.service.List()
+	if err != nil {
+		http.Error(
+			w,
+			"Internal server error",
+			http.StatusInternalServerError,
+		)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 
 	if err := json.NewEncoder(w).Encode(tasks); err != nil {
+		// Response may already have been written.
 		log.Printf("Failed to encode tasks: %v", err)
 	}
 }

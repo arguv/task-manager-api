@@ -148,7 +148,7 @@ func TestServiceDeleteTask(t *testing.T) {
 		t.Errorf("Expected deleted task to be missing, got: %v", err)
 	}
 
-	tasks := service.List()
+	tasks, err := service.List()
 
 	if len(tasks) != 1 {
 		t.Errorf("Expected 1 remaining task, got %d", len(tasks))

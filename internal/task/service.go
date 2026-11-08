@@ -39,7 +39,7 @@ func validateTask(input CreateTaskRequest) bool {
 	return true
 }
 
-func (s *Service) List() []Task {
+func (s *Service) List() ([]Task, error) {
 	return s.repo.List()
 }
 

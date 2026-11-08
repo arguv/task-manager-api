@@ -1,21 +1,24 @@
 # Task Manager API
 
-A RESTful task management API built with Go's standard `net/http` package.
-The API currently uses an in-memory repository, so all data is reset when the
-server restarts.
+A RESTful task management API built with Go's standard `net/http` package and
+PostgreSQL persistence.
 
 ## Technology stack
 
 - Go 1.27.3+
 - `net/http` with method-aware `http.ServeMux` routing
-- In-memory storage protected by a mutex
+- PostgreSQL 17
+- `pgx/v5` connection pooling
 - JSON request and response bodies
+- Docker Compose for local PostgreSQL development
 
 ## Features
 
 - Create, list, retrieve, update, and delete tasks
+- PostgreSQL-backed persistence
 - Task validation for title, status, and priority
 - Health check endpoint
+- Graceful shutdown on `SIGINT` and `SIGTERM`
 - Unit and HTTP handler/router tests
 
 Valid statuses are `todo`, `in_progress`, and `done`. Valid priorities are
@@ -45,79 +48,75 @@ Create and update requests use this JSON shape:
 Invalid JSON, invalid task data, invalid IDs, and missing tasks return `4xx`
 responses as appropriate.
 
-## Project structure
+## Local setup
 
-```text
-task-manager-api/
-├── cmd/
-│   └── api/
-│       └── main.go             # Application entry point and health route
-├── internal/
-│   └── task/
-│       ├── model.go            # Task request/response models
-│       ├── repository.go       # Repository interface and memory storage
-│       ├── service.go          # Validation and business logic
-│       ├── handler.go          # HTTP handlers
-│       ├── router.go           # API route registration
-│       └── *_test.go           # Service, handler, router, and validation tests
-├── .gitignore
-├── go.mod
-└── README.md
-```
+### Prerequisites
 
-## Development commands
+- Go 1.27.3 or newer
+- Docker and Docker Compose
+- `psql` for applying migrations
 
-Run these commands from the repository root.
+### Start PostgreSQL
 
-Check the installed Go version:
+Copy the example environment file and adjust the values if needed:
 
 ```bash
-go version
+cp .env.example .env
 ```
 
-Download module dependencies:
+The application also requires `DATABASE_URL`. Add it to `.env` for the default
+local setup:
+
+```dotenv
+DATABASE_URL=postgres://task_user:change_me@localhost:5433/task_manager?sslmode=disable
+```
+
+Start the database container:
 
 ```bash
-go mod download
+docker compose up -d postgres
 ```
 
-Format the source code:
+Apply the initial schema:
 
 ```bash
-gofmt -w cmd/api/main.go internal/task/*.go
+PGPASSWORD=change_me psql \
+  "postgres://task_user:change_me@localhost:5433/task_manager?sslmode=disable" \
+  -f migrations/000001_create_tasks_table.up.sql
 ```
 
-Run static analysis:
-
-```bash
-go vet ./...
-```
-
-Run all tests:
-
-```bash
-go test ./...
-```
-
-Generate a coverage profile:
-
-```bash
-go test -coverprofile=coverage.out ./...
-```
-
-Create an HTML coverage report:
-
-```bash
-go tool cover -html=coverage.out -o coverage.html
-```
-
-Run the API locally:
+Run the API:
 
 ```bash
 go run ./cmd/api
 ```
 
-The server listens on `http://localhost:8080`. Stop it with `Ctrl+C`.
+The server listens on `http://localhost:8080`. Stop it with `Ctrl+C`. Stop the
+database container when finished with:
+
+```bash
+docker compose down
+```
+
+Use `docker compose down -v` only when you also want to remove the PostgreSQL
+data volume.
+
+## Development commands
+
+Run these commands from the repository root.
+
+```bash
+go version
+go mod download
+gofmt -w cmd internal
+go vet ./...
+go test ./...
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out -o coverage.html
+```
+
+The tests use in-memory and mock repositories where appropriate, so the full
+test suite does not require a running PostgreSQL instance.
 
 ## Example requests
 
@@ -147,10 +146,37 @@ curl -X PUT http://localhost:8080/api/v1/tasks/1 \
 curl -i -X DELETE http://localhost:8080/api/v1/tasks/1
 ```
 
+## Project structure
+
+```text
+task-manager-api/
+├── cmd/api/
+│   ├── main.go               # Application entry point and health route
+│   ├── server.go             # HTTP server configuration
+│   └── server_test.go
+├── internal/
+│   ├── database/
+│   │   └── postgres.go       # PostgreSQL connection pool
+│   └── task/
+│       ├── model.go          # Task request/response models
+│       ├── repository.go     # Repository interface and memory repository
+│       ├── postgres_repository.go
+│       ├── service.go        # Validation and business logic
+│       ├── handler.go        # HTTP handlers
+│       ├── router.go         # API route registration
+│       └── *_test.go         # Unit and HTTP tests
+├── migrations/               # SQL schema migrations
+├── compose.yaml              # Local PostgreSQL service
+├── .env.example              # Local database configuration template
+├── go.mod
+└── README.md
+```
+
 ## Development status
 
-The API is in development. Storage is intentionally in memory for now; a
-future persistence layer can implement the existing `Repository` interface.
+The API is in development. PostgreSQL is the runtime persistence layer, while
+the repository interface and in-memory implementation remain useful for unit
+tests and alternate storage implementations.
 
 ## License
 
