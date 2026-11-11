@@ -15,3 +15,6 @@ CREATE TABLE tasks (
     CONSTRAINT tasks_priority_valid
         CHECK (priority IN ('low', 'medium', 'high'))
 );
+
+CREATE INDEX IF NOT EXISTS tasks_status_idx ON tasks (status);
+CREATE INDEX IF NOT EXISTS tasks_priority_idx ON tasks (priority);

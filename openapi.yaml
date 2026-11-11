@@ -1,0 +1,36 @@
+openapi: 3.0.3
+info:
+  title: Task Manager API
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+paths:
+  /health:
+    get:
+      responses: { '200': { description: Healthy } }
+  /api/v1/tasks:
+    get:
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: page_size, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { in: query, name: status, schema: { type: string } }
+        - { in: query, name: priority, schema: { type: string } }
+        - { in: query, name: sort, schema: { type: string, enum: [id, title, status, priority] } }
+      responses: { '200': { description: Task list } }
+    post:
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TaskInput' } } } }
+      responses: { '201': { description: Created }, '400': { description: Invalid request }, '500': { description: Server error } }
+  /api/v1/tasks/{id}:
+    parameters: [{ in: path, name: id, required: true, schema: { type: integer, minimum: 1 } }]
+    get: { responses: { '200': { description: Task }, '404': { description: Not found } } }
+    put: { requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TaskInput' } } } }, responses: { '200': { description: Updated } } }
+    delete: { responses: { '204': { description: Deleted } } }
+components:
+  schemas:
+    TaskInput:
+      type: object
+      required: [title, status, priority]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 255 }
+        status: { type: string, enum: [todo, in_progress, done] }
+        priority: { type: string, enum: [low, medium, high] }

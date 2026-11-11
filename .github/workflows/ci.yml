@@ -1,0 +1,34 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: task_manager_test
+          POSTGRES_USER: task_user
+          POSTGRES_PASSWORD: change_me
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U task_user -d task_manager_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.27.3' }
+      - name: Prepare integration database
+        env:
+          PGPASSWORD: change_me
+        run: |
+          psql "postgres://task_user@localhost:5432/task_manager_test?sslmode=disable" -f migrations/000001_create_tasks_table.up.sql
+      - run: go test ./...
+        env:
+          TEST_DATABASE_URL: postgres://task_user:change_me@localhost:5432/task_manager_test?sslmode=disable
+      - run: go test -race ./...
+        env:
+          TEST_DATABASE_URL: postgres://task_user:change_me@localhost:5432/task_manager_test?sslmode=disable
+      - run: go vet ./...

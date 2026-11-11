@@ -12,6 +12,7 @@ import (
 
 	"github.com/joho/godotenv"
 
+	"github.com/arguv/task-manager-api/internal/config"
 	"github.com/arguv/task-manager-api/internal/database"
 	"github.com/arguv/task-manager-api/internal/task"
 )
@@ -39,12 +40,12 @@ func main() {
 		log.Println("No .env file found; using existing environment variables")
 	}
 
-	databaseURL := os.Getenv("DATABASE_URL")
-	if databaseURL == "" {
-		log.Fatal("DATABASE_URL is required")
+	appConfig, err := config.Load()
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	pool, err := database.NewPostgresPool(databaseURL)
+	pool, err := database.NewPostgresPool(appConfig.DatabaseURL)
 	if err != nil {
 		log.Fatalf("Database connection failed: %v", err)
 	}
@@ -59,7 +60,8 @@ func main() {
 	router := task.NewRouter(taskHandler)
 	router.HandleFunc("GET /health", healthCheck)
 
-	server := newHTTPServer(":8080", router)
+	protectedRouter := task.APIKeyMiddleware(appConfig.APIKey)(router)
+	server := newHTTPServer(appConfig.HTTPAddr, task.RecoverMiddleware(task.LoggingMiddleware(protectedRouter)))
 
 	serverErrors := make(chan error, 1)
 

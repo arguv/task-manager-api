@@ -20,6 +20,8 @@ PostgreSQL persistence.
 - Health check endpoint
 - Graceful shutdown on `SIGINT` and `SIGTERM`
 - Unit and HTTP handler/router tests
+- Consistent JSON errors, panic recovery, request logging, optional API-key protection
+- Pagination, filtering, sorting, OpenAPI documentation, Docker and GitHub Actions CI
 
 Valid statuses are `todo`, `in_progress`, and `done`. Valid priorities are
 `low`, `medium`, and `high`.
@@ -29,7 +31,7 @@ Valid statuses are `todo`, `in_progress`, and `done`. Valid priorities are
 | Method | Endpoint | Success | Description |
 | --- | --- | --- | --- |
 | `GET` | `/health` | `200` | Returns service health |
-| `GET` | `/api/v1/tasks` | `200` | Lists all tasks |
+| `GET` | `/api/v1/tasks` | `200` | Lists tasks; supports `page`, `page_size`, `status`, `priority`, and `sort` |
 | `GET` | `/api/v1/tasks/{id}` | `200` | Returns one task |
 | `POST` | `/api/v1/tasks` | `201` | Creates a task |
 | `PUT` | `/api/v1/tasks/{id}` | `200` | Replaces a task |
@@ -46,7 +48,11 @@ Create and update requests use this JSON shape:
 ```
 
 Invalid JSON, invalid task data, invalid IDs, and missing tasks return `4xx`
-responses as appropriate.
+responses as appropriate. Server failures return a JSON object such as
+`{"error":"Internal server error"}` without exposing database details.
+
+When `API_KEY` is configured, POST, PUT, and DELETE requests require the
+`X-API-Key` header. GET requests remain public.
 
 ## Local setup
 
@@ -98,6 +104,17 @@ database container when finished with:
 docker compose down
 ```
 
+### Run the API with Docker
+
+After starting PostgreSQL, build and run the API with:
+
+```bash
+docker build -t task-manager-api .
+docker run --rm --network host --env-file .env task-manager-api
+```
+
+The complete endpoint contract is in [openapi.yaml](./openapi.yaml).
+
 Use `docker compose down -v` only when you also want to remove the PostgreSQL
 data volume.
 
@@ -117,6 +134,10 @@ go tool cover -html=coverage.out -o coverage.html
 
 The tests use in-memory and mock repositories where appropriate, so the full
 test suite does not require a running PostgreSQL instance.
+
+PostgreSQL integration tests run when `TEST_DATABASE_URL` points to a dedicated
+database named `task_manager_test`; otherwise those tests are intentionally
+skipped. CI can provide that variable after applying the migration.
 
 ## Example requests
 
@@ -166,6 +187,8 @@ task-manager-api/
 │       ├── router.go         # API route registration
 │       └── *_test.go         # Unit and HTTP tests
 ├── migrations/               # SQL schema migrations
+├── openapi.yaml              # OpenAPI 3 endpoint contract
+├── Dockerfile                # Multi-stage production image
 ├── compose.yaml              # Local PostgreSQL service
 ├── .env.example              # Local database configuration template
 ├── go.mod

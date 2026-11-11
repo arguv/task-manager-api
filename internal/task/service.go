@@ -2,7 +2,6 @@ package task
 
 import (
 	"errors"
-	"log"
 	"strings"
 )
 
@@ -20,7 +19,7 @@ func NewService(repo Repository) *Service {
 }
 
 func validateTask(input CreateTaskRequest) bool {
-	if strings.TrimSpace(input.Title) == "" {
+	if strings.TrimSpace(input.Title) == "" || len([]rune(strings.TrimSpace(input.Title))) > 255 {
 		return false
 	}
 
@@ -48,13 +47,6 @@ func (s *Service) Get(id int) (Task, error) {
 }
 
 func (s *Service) Create(input CreateTaskRequest) (Task, error) {
-	log.Printf("Received task input: %+v", input)
-
-	if !validateTask(input) {
-		log.Printf("Task validation failed: %+v", input)
-		return Task{}, ErrInvalid
-	}
-
 	if !validateTask(input) {
 		return Task{}, ErrInvalid
 	}
